@@ -61,4 +61,4 @@ public class EventSpecifications {
             return "%" + escaped + "%";
         }
     }
-}
+

@@ -6,6 +6,10 @@ import com.Backend.EventManagement.DTO.EventResponse;
 import com.Backend.EventManagement.DTO.PagedResponse;
 import com.Backend.EventManagement.Entity.Event;
 import com.Backend.EventManagement.Entity.EventStatus;
+import com.Backend.EventManagement.ExceptionHandler.DuplicateEventException;
+import com.Backend.EventManagement.ExceptionHandler.EventNotFoundException;
+import com.Backend.EventManagement.ExceptionHandler.InvalidEventStateException;
+import com.Backend.EventManagement.ExceptionHandler.InvalidRequestException;
 import com.Backend.EventManagement.Repository.EventRepo;
 import com.Backend.EventManagement.Repository.EventSpecifications;
 import com.sun.jdi.request.InvalidRequestStateException;
@@ -61,7 +65,7 @@ public class EventService {
         validateStartIsInFuture(eventRequest.getStartTime(),now);
 
         if(eventRepo.existsDuplicate( eventRequest.getName(), eventRequest.getVenue(),eventRequest.getStartTime(), EventStatus.CANCELLED)){
-            throw new DuplicateEventException("Event already exists");
+            throw new DuplicateEventException(eventRequest.getName() ,eventRequest.getVenue());
         }
         Event  event = new Event();
         event.setName(eventName);
@@ -107,7 +111,7 @@ public class EventService {
         validateStartIsInFuture(eventRequest.getStartTime() ,now);
 
         if(eventRepo.existsDuplicate( eventRequest.getName(), eventRequest.getVenue(),eventRequest.getStartTime(), EventStatus.CANCELLED)){
-            throw new DuplicateEventException("Event already exists");
+            throw new DuplicateEventException( eventRequest.getName() ,eventRequest.getVenue());
         }
         event.setVenue(venue);
         event.setStartTime(eventRequest.getStartTime());
@@ -132,8 +136,8 @@ public class EventService {
         if(!lockedChanges.isEmpty()){
             throw new InvalidEventStateException("An ongoing event can not be changed .Only description can be changed"
             );
-           event.setDescription(eventRequest.getDescription());
         }
+        event.setDescription(eventRequest.getDescription());
 
     }
 
@@ -169,7 +173,7 @@ public class EventService {
         validateStartIsInFuture(eventRequest.getStartTime(),now);
 
         if(eventRepo.existsDuplicate( eventRequest.getName(), eventRequest.getVenue(),eventRequest.getStartTime(), EventStatus.CANCELLED)){
-            throw new DuplicateEventException("Event already exists");
+            throw new DuplicateEventException(eventRequest.getName() ,eventRequest.getVenue());
         }
         Event  event = new Event();
         event.setName(eventName);
@@ -255,9 +259,10 @@ public class EventService {
         return Arrays.stream(EventStatus.values())
                 .filter(status -> status.name().equalsIgnoreCase(value.trim()))
                 .findFirst()
-                .orElseThrow(()-> new InvalidStateException("status" , "status must be of " + Arrays.stream(EventStatus.values())
+                .orElseThrow(()-> new InvalidEventStateException( "status must be of " + Arrays.stream(EventStatus.values())
                         .map(status-> status.name().toLowerCase(Locale.ROOT))
-                                .collect(Collectors.joining(","))));
+                                .collect(Collectors.joining(","))
+                ));
     }
 
 
