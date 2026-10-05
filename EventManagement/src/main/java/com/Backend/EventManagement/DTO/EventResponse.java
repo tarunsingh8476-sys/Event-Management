@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -17,12 +18,13 @@ public class EventResponse {
     private String name;
     private String description;
     private String venue;
-    private LocalDateTime date;
+    private LocalDate eventDate;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private Integer maxCapacity;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private EventStatus status;
 
 
     public static EventResponse from(Event event ,LocalDateTime now){
@@ -36,7 +38,7 @@ public class EventResponse {
                 event.getMaxCapacity(),
                 event.getCreatedAt(),
                 event.getUpdatedAt(),
-                event.getStatus(now),
+                event.getStatus(now)
 
         );
     }

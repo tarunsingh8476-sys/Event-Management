@@ -1,3 +1,16 @@
 spring:
   application:
     name: EventManagement
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/event_management
+    username: postgres
+    password: mango$orbit49
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+app:
+  timezone: Asia/Kolkata

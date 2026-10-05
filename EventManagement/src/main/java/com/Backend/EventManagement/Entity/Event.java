@@ -8,17 +8,16 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 
 @Entity
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "events")
+@Table
 public class Event {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false)
@@ -27,7 +26,7 @@ public class Event {
 
     private String venue;
 
-    @Column( name = "event_date", nullable = false)
+    @Column( nullable = false)
     private LocalDate eventDate;
 
     private LocalDateTime startTime;

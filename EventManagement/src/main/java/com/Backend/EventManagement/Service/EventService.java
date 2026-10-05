@@ -1,7 +1,6 @@
 package com.Backend.EventManagement.Service;
 
 import com.Backend.EventManagement.DTO.EventRequest;
-import com.Backend.EventManagement.DTO.EventQuery;
 import com.Backend.EventManagement.DTO.EventResponse;
 import com.Backend.EventManagement.DTO.PagedResponse;
 import com.Backend.EventManagement.Entity.Event;
@@ -11,28 +10,23 @@ import com.Backend.EventManagement.ExceptionHandler.EventNotFoundException;
 import com.Backend.EventManagement.ExceptionHandler.InvalidEventStateException;
 import com.Backend.EventManagement.ExceptionHandler.InvalidRequestException;
 import com.Backend.EventManagement.Repository.EventRepo;
-import com.Backend.EventManagement.Repository.EventSpecifications;
 import com.sun.jdi.request.InvalidRequestStateException;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static java.time.LocalDateTime.now;
-import static jdk.jfr.internal.StringPool.MAX_LIMIT;
 
 @Service
 public class EventService {
@@ -64,7 +58,7 @@ public class EventService {
 
         validateStartIsInFuture(eventRequest.getStartTime(),now);
 
-        if(eventRepo.existsDuplicate( eventRequest.getName(), eventRequest.getVenue(),eventRequest.getStartTime(), EventStatus.CANCELLED)){
+        if(eventRepo.existsDuplicate( eventRequest.getName(), eventRequest.getVenue(),eventRequest.getStartTime(),null)){
             throw new DuplicateEventException(eventRequest.getName() ,eventRequest.getVenue());
         }
         Event  event = new Event();
@@ -78,12 +72,43 @@ public class EventService {
         return EventResponse.from(eventRepo.save(event),now);
     }
 
-    public List<EventResponse> getAllEvents() {
+    public PagedResponse<EventResponse> getAllEvents(int page, int limit, String sort, String order, String search) {
         LocalDateTime now = now();
-        return eventRepo.findAll(Sort.by("sartTime").and(Sort.by("id"))).stream()
-                .map(event -> EventResponse.from(event ,now))
+
+        // 1. Check the paging and sorting values
+        if (page < 1) {
+            throw new InvalidRequestException("page", "page must be 1 or greater");
+        }
+        if (limit < 1 || limit > MAX_PAGE_SIZE) {
+            throw new InvalidRequestException("limit", "limit must be between 1 and " + MAX_PAGE_SIZE);
+        }
+
+        String sortKey = Optional.ofNullable(sort)
+                .map(value -> value.trim().toLowerCase(Locale.ROOT))
+                .filter(value -> !value.isEmpty())
+                .orElse("date");
+        String sortField = Optional.ofNullable(SORT_FIELDS.get(sortKey))
+                .orElseThrow(() -> new InvalidRequestException("sort",
+                        "sort must be one of: " + SORT_FIELDS.keySet().stream()
+                                .sorted()
+                                .collect(Collectors.joining(", "))));
+        Sort.Direction direction = parseDirection(order);
+
+        // 2. Build the page request. The id is a second sort key so pages stay stable when values tie.
+        Sort sorting = Sort.by(direction, sortField).and(Sort.by(Sort.Direction.ASC, "id"));
+        Pageable pageable = PageRequest.of(page - 1, limit, sorting);
+
+        // 3. Ask the database for just this page
+        Page<Event> result = (search == null || search.isBlank())
+                ? eventRepo.findAll(pageable)
+                : eventRepo.findByNameContainingIgnoreCase(search.trim(), pageable);
+
+        List<EventResponse> items = result.getContent().stream()
+                .map(event -> EventResponse.from(event, now))
                 .toList();
 
+        return new PagedResponse<>(items,
+                new PagedResponse.Pagination(page, limit, result.getTotalElements(), result.getTotalPages()));
     }
 
     @Transactional
@@ -110,7 +135,7 @@ public class EventService {
         validateTimes(eventRequest.getStartTime() , eventRequest.getEndTime());
         validateStartIsInFuture(eventRequest.getStartTime() ,now);
 
-        if(eventRepo.existsDuplicate( eventRequest.getName(), eventRequest.getVenue(),eventRequest.getStartTime(), EventStatus.CANCELLED)){
+        if(eventRepo.existsDuplicate( eventRequest.getName(), eventRequest.getVenue(),eventRequest.getStartTime(),null)){
             throw new DuplicateEventException( eventRequest.getName() ,eventRequest.getVenue());
         }
         event.setVenue(venue);
@@ -172,12 +197,13 @@ public class EventService {
 
         validateStartIsInFuture(eventRequest.getStartTime(),now);
 
-        if(eventRepo.existsDuplicate( eventRequest.getName(), eventRequest.getVenue(),eventRequest.getStartTime(), EventStatus.CANCELLED)){
+        if(eventRepo.existsDuplicate( eventRequest.getName(), eventRequest.getVenue(),eventRequest.getStartTime(), null)){
             throw new DuplicateEventException(eventRequest.getName() ,eventRequest.getVenue());
         }
         Event  event = new Event();
         event.setName(eventName);
         event.setVenue(venue);
+        event.setEventDate(eventRequest.getEventDate());
         event.setStartTime(eventRequest.getStartTime());
         event.setEndTime(eventRequest.getEndTime());
         event.setMaxCapacity(eventRequest.getMaxCapacity());
@@ -212,48 +238,6 @@ public class EventService {
         return LocalDateTime.now(clock);
     }
 
-    public PagedResponse<EventResponse> search(EventQuery query){
-        LocalDateTime now = now();
-        if(query.page() < 1){
-            throw new InvalidRequestException("page" ,"page must be 1 or greater");
-        }
-        if(query.page() > MAX_PAGE_SIZE || query.page() < 1){
-            throw new InvalidRequestException("limit" ,"limit must  between 1 and " + MAX_LIMIT);
-        }
-
-        String sortKey = Optional.ofNullable(query.sort())
-                .map(value -> value.trim().toLowerCase(Locale.ROOT))
-                .filter(value -> !value.isEmpty())
-                .orElse("date");
-        String sortField = Optional.ofNullable(SORT_FIELDS.get(sortKey)).orElseThrow(()->
-                new InvalidRequestException("sort" , "sort must be of : " +
-                        SORT_FIELDS.keySet().stream().sorted().collect(Collectors.joining(","))
-                        ));
-        Sort.Direction sortDirection = parseDirection(query.order());
-
-
-
-        Specification<Event> matchAll = (root, q, cb) -> cb.conjunction();
-
-        Specification<Event> spec = Stream.of(
-                        textFilter(query.search(), EventSpecifications::nameOrDescriptionContains),
-                        textFilter(query.venue(), EventSpecifications::venueContains),
-                        textFilter(query.status(), value -> EventSpecifications.hasStatus(parseStatus(value), now))
-                .flatMap(Optional::stream)
-                .reduce(matchAll, Specification::and));
-        Sort sort = Sort.by(sortDirection, sortField).and(Sort.by(Sort.Direction.ASC , "id"));
-
-
-    Page<Event> result = eventRepo.findAll(spec, PageRequest.of(query.page() - 1, query.limit(), sort));
-
-    List<EventResponse> items = result.getContent().stream()
-            .map(event -> EventResponse.from(event, now))
-            .toList();
-
-        return new PagedResponse<>(items,
-            new PagedResponse.Pagination(query.page(), query.limit(),
-            result.getTotalElements(), result.getTotalPages()));
-}
 
     private EventStatus parseStatus(String value) {
         return Arrays.stream(EventStatus.values())
