@@ -43,7 +43,7 @@ public class EventController {
     }
 
     @PostMapping("/addEvent")
-    public ResponseEntity<EventResponse> addEvent(@RequestBody EventRequest eventRequest) {
+    public ResponseEntity<EventResponse> addEvent(@Valid @RequestBody EventRequest eventRequest) {
         return ResponseEntity.ok(eventService.addEvent(eventRequest));
 
     }
@@ -53,13 +53,13 @@ public class EventController {
     }
 
     @PutMapping("/updateEvent/{id}")
-    public ResponseEntity<EventResponse> updateEvent( @PathVariable Long id , @RequestParam EventRequest eventRequest) {
+    public ResponseEntity<EventResponse> updateEvent( @PathVariable Long id , @Valid @RequestBody EventRequest eventRequest) {
         return ResponseEntity.ok(eventService.updateEvent(id , eventRequest));
     }
 
 
     @DeleteMapping("/deleteEvent/{id}")
-    public ResponseEntity<Void> deleteEvent(Long id) {
+    public ResponseEntity<Void> deleteEvent(@PathVariable Long id) {
         eventService.deleteEvent(id);
         return ResponseEntity.noContent().build();
     }

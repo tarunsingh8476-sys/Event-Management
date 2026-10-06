@@ -19,6 +19,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
@@ -64,7 +65,9 @@ public class EventService {
         Event  event = new Event();
         event.setName(eventName);
         event.setVenue(venue);
+        event.setEventDate(eventRequest.getEventDate());
         event.setStartTime(eventRequest.getStartTime());
+        event.setDescription(eventRequest.getDescription());
         event.setEndTime(eventRequest.getEndTime());
         event.setMaxCapacity(eventRequest.getMaxCapacity());
         event.setCreatedAt(now);
@@ -128,6 +131,7 @@ public class EventService {
         return EventResponse.from(eventRepo.save(event), now);
     }
     private void updateUpcoming(Event event, EventRequest eventRequest, LocalDateTime now) {
+
         String name = eventRequest.getName().trim();
         String venue = eventRequest.getVenue().trim();
 
@@ -164,13 +168,10 @@ public class EventService {
         event.setDescription(eventRequest.getDescription());
 
     }
-
+ 
     private Optional<String> ChangedField(String fieldName , Object storedValue , Object requestValue){
         return Objects.equals(storedValue , requestValue) ? Optional.empty(): Optional.of(fieldName);
     }
-
-
-
 
 
     @Transactional
@@ -247,15 +248,6 @@ public class EventService {
                                 .collect(Collectors.joining(","))
                 ));
     }
-
-
-    private Optional<Specification<Event>> textFilter(String rawValue, Function<String , Specification<Event>> builder) {
-        return Optional.ofNullable(rawValue)
-                .map(String::trim)
-                .filter(text-> !text.isEmpty())
-                .map(builder);
-    }
-
 
     private Sort.Direction parseDirection(String order) {
         if (order == null || order.isBlank()) {

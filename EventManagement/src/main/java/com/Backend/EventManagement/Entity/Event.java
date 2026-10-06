@@ -2,9 +2,7 @@ package com.Backend.EventManagement.Entity;
 
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -44,7 +42,7 @@ public class Event {
             return EventStatus.UPCOMING;
         }
         if (now.isBefore(endTime)) {
-            return EventStatus.PENDING;
+            return EventStatus.ONGOING;
         }
         return  EventStatus.COMPLETED;
     }
