@@ -75,7 +75,6 @@ public class EventService {
     public PagedResponse<EventResponse> getAllEvents(int page, int limit, String sort, String order, String search) {
         LocalDateTime now = now();
 
-        // 1. Check the paging and sorting values
         if (page < 1) {
             throw new InvalidRequestException("page", "page must be 1 or greater");
         }
@@ -94,11 +93,11 @@ public class EventService {
                                 .collect(Collectors.joining(", "))));
         Sort.Direction direction = parseDirection(order);
 
-        // 2. Build the page request. The id is a second sort key so pages stay stable when values tie.
+
         Sort sorting = Sort.by(direction, sortField).and(Sort.by(Sort.Direction.ASC, "id"));
         Pageable pageable = PageRequest.of(page - 1, limit, sorting);
 
-        // 3. Ask the database for just this page
+
         Page<Event> result = (search == null || search.isBlank())
                 ? eventRepo.findAll(pageable)
                 : eventRepo.findByNameContainingIgnoreCase(search.trim(), pageable);
